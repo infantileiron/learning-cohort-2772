@@ -1,6 +1,7 @@
 from datetime import datetime,date,timezone
 from pydantic import BaseModel,Field,field_validator,model_validator
-from typing import Literal
+from typing import Literal,Optional
+from src.services.calendar import normalize_segments
 class Login(BaseModel):email:str;password:str
 class EventInput(BaseModel):
  code:str=Field(min_length=1,max_length=60)
@@ -30,3 +31,16 @@ class InterventionInput(BaseModel):
  week_index:int=Field(ge=1,le=8)
  note:str=Field(min_length=8,max_length=2000)
 class NoteInput(BaseModel):note:str=Field(min_length=8,max_length=2000)
+class SegmentInput(BaseModel):
+ start_date:date
+ end_date:Optional[date]=None
+class IntervalRevisionInput(BaseModel):
+ learner:str=Field(min_length=1,max_length=60)
+ segments:list[SegmentInput]=Field(min_length=1,max_length=50)
+ note:str=Field(default='',max_length=1000)
+ idempotency_key:Optional[str]=Field(default=None,max_length=200)
+ @model_validator(mode='after')
+ def segments_valid(self):
+  items=[s.model_dump(mode='json') for s in self.segments]
+  self.segments=[SegmentInput(**s) for s in normalize_segments(items,ValueError)]
+  return self
